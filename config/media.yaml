@@ -15,7 +15,7 @@ endpoints:
     write_strategy: overwrite
     expected_response_columns:  
       id : int
-      hashes_id: string
+      hashed_id: string
       name: string
       stats:
         pageLoads : int
@@ -70,25 +70,26 @@ endpoints:
         contentType: "str"
         type: "str"
 
-    media_metadata:
-      description: "Metadata tied to each video"
-      write_strategy: overwrite
-      expected_response_columns:
-        id: int
-        hashed_id: str
-        progress: int
-        type: str
-        archived: bool
-        name: str
-        duration: float
-        created: datetime
-        updated: datetime
-        protected: string
-        status: "str | bool | null"
-        thumbnail: dict
-        section: " str | bool | null"
-        tags: "list[str]"
-        assets: "list[dict]"
+  media_metadata:
+    description: "Metadata tied to each video"
+    url_pattern: "{api_base}/modern/medias/{mediaHashedId}"
+    write_strategy: overwrite
+    expected_response_columns:
+      id: int
+      hashed_id: str
+      progress: int
+      type: str
+      archived: bool
+      name: str
+      duration: float
+      created: datetime
+      updated: datetime
+      protected: string
+      status: "str | bool | null"
+      thumbnail: dict
+      section: " str | bool | null"
+      tags: "list[str]"
+      assets: "list[dict]"
 
 
   

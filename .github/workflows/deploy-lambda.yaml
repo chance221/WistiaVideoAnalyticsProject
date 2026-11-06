@@ -1,0 +1,145 @@
+name: Deploy WistiaRawIngest Lambda
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/raw/**"
+      - "scripts/aws/**"
+      - "scripts/models/**"
+      - "config/**"
+      - "tests/**"
+      - "infra/lambda/lambda_template.yaml"
+      - "infra/lambda/requirements-lambda.txt"
+      - ".github/workflows/deploy-lambda.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/raw/**"
+      - "scripts/aws/**"
+      - "scripts/models/**"
+      - "config/**"
+      - "tests/**"
+      - "infra/lambda/lambda_template.yaml"
+      - "infra/lambda/requirements-lambda.txt"
+      - ".github/workflows/deploy-lambda.yaml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: wistia-pipeline-project
+  LAMBDA_FUNCTION_NAME: WistiaRawIngest
+  S3_ARTIFACT_KEY: artifacts/lambda/WistiaRawIngest-${{ github.sha }}.zip
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install test dependencies and run isolated unit test suite
+        run: |
+          pip install -r infra/lambda/requirements-lambda.txt boto3 pytest
+          pytest -v tests/
+
+      - name: Build lightweight Lambda package
+        run: |
+          mkdir -p build/package
+          pip install -r infra/lambda/requirements-lambda.txt \
+            --platform manylinux2014_x86_64 \
+            --implementation cp \
+            --python-version 3.13 \
+            --only-binary=:all: \
+            --target build/package
+
+          # Copy only required config and scripts directories
+          cp -r config build/package/config
+          mkdir -p build/package/scripts
+          cp scripts/__init__.py build/package/scripts/
+          cp -r scripts/aws build/package/scripts/aws
+          cp -r scripts/models build/package/scripts/models
+          cp -r scripts/raw build/package/scripts/raw
+
+          # Strip __pycache__ folders
+          find build/package -type d -name "__pycache__" -exec rm -rf {} +
+
+          cd build/package
+          zip -r9 ../WistiaRawIngest-${{ github.sha }}.zip .
+
+      - name: Upload build artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: WistiaRawIngest-${{ github.sha }}
+          path: build/WistiaRawIngest-${{ github.sha }}.zip
+          retention-days: 5
+
+  deploy-production:
+    needs: build-and-validate
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install PyYAML for template parsing
+        run: pip install pyyaml
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: WistiaRawIngest-${{ github.sha }}
+          path: build/
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::440107864885:role/WistiaGithubActionsExecutionRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload immutable SHA-versioned Lambda zip to S3
+        run: |
+          aws s3 cp build/WistiaRawIngest-${{ github.sha }}.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_ARTIFACT_KEY }}
+
+      - name: Update Lambda Function Code from S3
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-key ${{ env.S3_ARTIFACT_KEY }} \
+            --region ${{ env.AWS_REGION }}
+
+          aws lambda wait function-updated \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Sync Lambda Configuration from SAM Template
+        run: |
+          HANDLER=$(python -c "import yaml; t=yaml.safe_load(open('infra/lambda/lambda_template.yaml')); print(t['Resources']['WistiaRawIngest']['Properties']['Handler'])")
+          TIMEOUT=$(python -c "import yaml; t=yaml.safe_load(open('infra/lambda/lambda_template.yaml')); print(t['Resources']['WistiaRawIngest']['Properties']['Timeout'])")
+          MEMORY=$(python -c "import yaml; t=yaml.safe_load(open('infra/lambda/lambda_template.yaml')); print(t['Resources']['WistiaRawIngest']['Properties']['MemorySize'])")
+          ROLE=$(python -c "import yaml; t=yaml.safe_load(open('infra/lambda/lambda_template.yaml')); print(t['Resources']['WistiaRawIngest']['Properties']['Role'].strip())")
+
+          aws lambda update-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --handler "$HANDLER" \
+            --timeout "$TIMEOUT" \
+            --memory-size "$MEMORY" \
+            --role "$ROLE" \
+            --environment "Variables={ENV=prod}" \
+            --region ${{ env.AWS_REGION }}

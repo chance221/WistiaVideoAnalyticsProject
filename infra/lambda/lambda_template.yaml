@@ -1,0 +1,37 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda function that handles raw file ingestinon from Westia API and stores data in S3 Bucket.
+Resources:
+  WistiaRawIngest:
+    Type: AWS::Serverless::Function
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Fetches raw Wistia API endpoints and stores unaltered JSON payloads in the S3 Bronze layer.
+        must:
+          - Preserve raw API response data unaltered in S3 under year=YYYY/month=MM/day=DD partitions.
+          - Execute with WistiaLambdaExecutionole to read the Wistia secret from Secrets Manager and write to S3.
+    Properties:
+      Architectures:
+        - x86_64
+      CodeUri: ./src
+      Description: Fetches raw Wistia API endpoints and stores unaltered JSON in the S3 Bronze layer.
+      EphemeralStorage:
+        Size: 512
+      Handler: scripts.raw.raw_ingest.lambda_handler
+      LoggingConfig:
+        LogFormat: Text
+        LogGroup: /aws/lambda/WistiaRawIngest
+      MemorySize: 256
+      PackageType: Zip
+      RecursiveLoop: Terminate
+      Runtime: python3.13
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+      SnapStart:
+        ApplyOn: None
+      Tags: {}
+      Timeout: 180
+      Tracing: PassThrough
+      Role: >-
+        arn:aws:iam::440107864885:role/WistiaLambdaExecutionole
