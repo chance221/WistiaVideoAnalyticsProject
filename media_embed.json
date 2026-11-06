@@ -1,0 +1,64 @@
+{
+"embeded-data": [
+    {
+      "cta_conversion_rate": 0,
+      "embed_domain": "dataengineerinterviews.com",
+      "embed_path": "/",
+      "embed_url": "https://dataengineerinterviews.com/",
+      "engagement_rate": 0.3801956862762964,
+      "loads": 125,
+      "page_title": "The Gap Method",
+      "play_rate": 0.32558139534883723,
+      "played_time": 26964,
+      "plays": 30,
+      "unique_loads": 86,
+      "unique_plays": 28,
+      "unique_visitors": 105
+    },
+    {
+      "cta_conversion_rate": 0,
+      "embed_domain": "app.funnel-preview.com",
+      "embed_path": "/",
+      "embed_url": "https://app.funnel-preview.com/",
+      "engagement_rate": 0,
+      "loads": 2,
+      "page_title": "The Gap Method",
+      "play_rate": 0,
+      "played_time": null,
+      "plays": 0,
+      "unique_loads": 2,
+      "unique_plays": 0,
+      "unique_visitors": 2
+    },
+    {
+      "cta_conversion_rate": 0,
+      "embed_domain": "app.funnel-preview.com",
+      "embed_path": "/for_domain/dataengineerinterviews.com/optin-623050241735843056178",
+      "embed_url": "https://app.funnel-preview.com/for_domain/dataengineerinterviews.com/optin-623050241735843056178?updated_at=aa76e4ae30c7aa94cb6bf0e31ec04cc7v2&track=0&preview=true&v=75ad6d5b2370",
+      "engagement_rate": 0,
+      "loads": 1,
+      "page_title": "Data Engineer Academy Offer",
+      "play_rate": 0,
+      "played_time": null,
+      "plays": 0,
+      "unique_loads": 1,
+      "unique_plays": 0,
+      "unique_visitors": 1
+    },
+    {
+      "cta_conversion_rate": 0,
+      "embed_domain": "dataengineerinterviews.com",
+      "embed_path": "/optin-623050241735843056178",
+      "embed_url": "https://dataengineerinterviews.com/optin-623050241735843056178?fbclid=IwZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQMMjU2MjgxMDQwNTU4AAEepeA5ORPsz5-Rvpj3gJ1wASfjpiAx9OD87fyHaElIBg7HauA4YBw9XC-xow0_aem_9DFnd9JRjUFj",
+      "engagement_rate": 0,
+      "loads": 2,
+      "page_title": "Data Engineer Academy Offer",
+      "play_rate": 0,
+      "played_time": null,
+      "plays": 0,
+      "unique_loads": 2,
+      "unique_plays": 0,
+      "unique_visitors": 2
+    }
+  ]
+}

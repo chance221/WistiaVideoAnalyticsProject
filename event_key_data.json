@@ -1,0 +1,35 @@
+{
+    "received_at": "2026-04-22T18:42:04.000Z",
+    "event_key": "1776883_daa69fba-127a-47e2-8742-fa2af6bb8fda-983016d26-6b3f1358f61c-354f",
+    "ip": "57.132.178.179",
+    "country": "US",
+    "region": "Texas",
+    "city": "Sugar Land",
+    "lat": 29.5799,
+    "lon": -95.6085,
+    "org": "AstoundBroadband",
+    "email": null,
+    "percent_viewed": 0.0609081507601332,
+    "embed_url": "",
+    "conversion_type": "",
+    "conversion_data": {},
+    "iframe_heatmap_url": "https://api.wistia.com/modern/stats/events/1776883_daa69fba-127a-47e2-8742-fa2af6bb8fda-983016d26-6b3f1358f61c-354f/iframe.html?public_token=enfrzyfx7f",
+    "visitor_key": "1776883_208ae2c5-b579-4a35-92cc-9d2aee07ad9e-d51447bf6-d9d5cf8308f6-272d",
+    "user_agent_details": {
+        "browser": "Chrome",
+        "browser_version": "147",
+        "platform": "iOS (iPhone)",
+        "mobile": true
+    },
+    "media_id": "9k4tbcdfg0",
+    "media_name": "The Gap Method",
+    "media_url": "https://chrisgarzon19.wistia.com/medias/9k4tbcdfg0",
+    "thumbnail": {
+        "url": "http://embed.wistia.com/deliveries/5859ba870f8900526610e7d2126ee9d9.bin",
+        "width": 1920,
+        "height": 1080,
+        "fileSize": 1466800,
+        "contentType": "image/png",
+        "type": "StillImageFile"
+    }
+}

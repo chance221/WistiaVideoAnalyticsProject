@@ -1,0 +1,94 @@
+api_base: https://api.wistia.com
+
+
+media_ids: 
+  - 9k4tbcdfg0
+  - 8hunphufxp
+  
+results_per_page: 50
+
+endpoints:
+  #gets the viewer count. Shape is in media_views_url.json
+  media_views:
+    description: "Get requst to the stats listed in exepected_response_columns"
+    url_pattern: "{api_base}/modern/medias/{mediaHashedId}/stats"
+    write_strategy: overwrite
+    expected_response_columns:  
+      id : int
+      hashes_id: string
+      name: string
+      stats:
+        pageLoads : int
+        visitors: int
+        percentOfVisitorsClickingPlay: int
+        plays: int
+        averagePercentWatched: int
+  
+  media_engagement:
+    description: "Gets heat map of video engagement for every second video is viewed"
+    url_pattern: "{api_base}/modern/stats/medias/{mediaHashedId}/engagement"
+    write_strategy: overwrite
+    expected_response_columns:
+      engagement: float
+      engagement_data: "list[int]"
+
+
+  media_events:
+    description: "A list of events tied to each media event"
+    url_pattern: "{api_base}/modern/stats/events"
+    write_strategy: overwrite
+    expected_response_columns:
+      received_at: "datetime"
+      event_key: "str"
+      ip: "str"
+      country: "str"
+      region: "str"
+      city: "str"
+      lat: "float"
+      lon: "float"
+      org: "str"
+      email: "str | null"
+      percent_viewed: "float"
+      embed_url: "str"
+      conversion_type: "str"
+      conversion_data: "dict"
+      iframe_heatmap_url: "str"
+      visitor_key: "str"
+      user_agent_details:
+        browser: "str"
+        browser_version: "str"
+        platform: "str"
+        mobile: "bool"
+      media_id: "str"
+      media_name: "str"
+      media_url: "str"
+      thumbnail:
+        url: "str"
+        width: "int"
+        height: "int"
+        fileSize: "int"
+        contentType: "str"
+        type: "str"
+
+    media_metadata:
+      description: "Metadata tied to each video"
+      write_strategy: overwrite
+      expected_response_columns:
+        id: int
+        hashed_id: str
+        progress: int
+        type: str
+        archived: bool
+        name: str
+        duration: float
+        created: datetime
+        updated: datetime
+        protected: string
+        status: "str | bool | null"
+        thumbnail: dict
+        section: " str | bool | null"
+        tags: "list[str]"
+        assets: "list[dict]"
+
+
+  

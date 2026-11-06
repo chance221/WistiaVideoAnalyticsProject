@@ -1,0 +1,9 @@
+# Need to create a yaml config that will accept different parameters for each job that needs to run.
+#
+env: prod
+
+aws:
+  bucket_name: wistia-pipeline-project
+  region: us-east-1
+  api_secret: westia_api_key
+

@@ -1,0 +1,7 @@
+
+env: dev
+
+aws:
+  bucket_name: wistia-pipeline-project
+  region: us-east-1
+  api_secret: westia_api_key
