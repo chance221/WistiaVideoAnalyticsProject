@@ -1,0 +1,95 @@
+name: Build & Deploy Wistia Glue Wheel
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/silver/**"
+      - "scripts/gold/**"
+      - "scripts/models/**"
+      - "scripts/aws/**"
+      - "config/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "infra/glue/**"
+      - ".github/workflows/deploy-glue.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/silver/**"
+      - "scripts/gold/**"
+      - "scripts/models/**"
+      - "scripts/aws/**"
+      - "config/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "infra/glue/**"
+      - ".github/workflows/deploy-glue.yaml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: wistia-pipeline-project
+  GLUE_JOB_NAME: WistiaMedallionGlueJob
+  S3_GLUE_PREFIX: artifacts/glue/${{ github.sha }}
+
+jobs:
+  build-and-test-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies and run isolated happy & sad path unit tests
+        run: |
+          pip install -e ".[dev]"
+          pytest -v tests/
+
+      - name: Build Python Wheel for AWS Glue
+        run: |
+          python -m build --wheel
+          ls -la dist/
+
+      - name: Upload wheel artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: wistia-glue-wheel-${{ github.sha }}
+          path: dist/*.whl
+          retention-days: 5
+
+  deploy-glue-production:
+    needs: build-and-test-wheel
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download built wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wistia-glue-wheel-${{ github.sha }}
+          path: dist/
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::440107864885:role/WistiaGithubActionsExecutionRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload Wheel and Glue entrypoint script to S3
+        run: |
+          WHEEL_FILE=$(ls dist/*.whl | head -n 1)
+          WHEEL_BASENAME=$(basename "$WHEEL_FILE")
+          aws s3 cp "$WHEEL_FILE" "s3://${{ env.S3_BUCKET }}/${{ env.S3_GLUE_PREFIX }}/${WHEEL_BASENAME}"
+          aws s3 cp scripts/aws/glue_spark.py "s3://${{ env.S3_BUCKET }}/${{ env.S3_GLUE_PREFIX }}/glue_spark.py"

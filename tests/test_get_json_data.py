@@ -71,7 +71,10 @@ def test_make_json_request_success_and_error(mock_get: MagicMock):
   res = make_json_request("https://api.wistia.com/test", "token123", {"page": 1})
   assert res == {"id": 123}
 
-  mock_get.side_effect = requests.exceptions.ConnectionError("Timeout")
+  # Non-transient 401 HTTPError gives up immediately without sleeping
+  err_resp = MagicMock()
+  err_resp.status_code = 401
+  mock_get.side_effect = requests.exceptions.HTTPError("401 Unauthorized", response=err_resp)
   with pytest.raises(requests.exceptions.RequestException):
     make_json_request("https://api.wistia.com/test", "token123")
 

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 import requests
+from scripts.raw.api_utils import resilient_api_request
 
 
 def validate_date(date_str: str) -> None:
@@ -56,7 +57,7 @@ def build_headers(api_token: str) -> dict[str, str]:
       "authorization": f"Bearer {api_token}",
   }
 
-
+@resilient_api_request(max_tries=5, max_value=15)
 def make_json_request(
     url: str,
     api_key: str,
@@ -65,7 +66,7 @@ def make_json_request(
   headers = build_headers(api_key)
 
   try:
-    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response = requests.get(url, headers=headers, params=params, timeout=10)
     response.raise_for_status()
     return response.json()
   except requests.exceptions.RequestException as e:

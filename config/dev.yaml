@@ -5,3 +5,4 @@ aws:
   bucket_name: wistia-pipeline-project
   region: us-east-1
   api_secret: westia_api_key
+  sns_topic_arn: arn:aws:sns:us-east-1:440107864885:wistia-pipeline-alerts
