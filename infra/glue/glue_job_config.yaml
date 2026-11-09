@@ -1,4 +1,5 @@
 JobName: WistiaMedallionGlueJob
+Role: arn:aws:iam::440107864885:role/WistiaGlueExecutionRole
 Description: >
   Weekly Medallion PySpark + Apache Iceberg SCD Type 1 job that validates Bronze S3 JSON
   via Pydantic, routes invalid records to Quarantine, and upserts Silver and Gold Iceberg tables.
@@ -10,10 +11,11 @@ ExecutionClass: FLEX
 Command:
   Name: glueetl
   PythonVersion: "3"
-  ScriptLocation: s3://wistia-pipeline-project/artifacts/glue/glue_spark.py
+  ScriptLocation: s3://wistia-pipeline-project/artifacts/glue/latest/glue_spark.py
 DefaultArguments:
   "--job-language": "python"
   "--datalake-formats": "iceberg"
+  "--extra-py-files": "s3://wistia-pipeline-project/artifacts/glue/latest/wistia_video_analytics-0.1.0-py3-none-any.whl"
   "--job-bookmark-option": "job-bookmark-disable"
   "--enable-metrics": "true"
   "--enable-continuous-cloudwatch-log": "true"
