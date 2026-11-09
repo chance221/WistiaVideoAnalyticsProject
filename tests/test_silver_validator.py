@@ -42,7 +42,9 @@ def test_validate_bronze_records_sad_path_mixed_and_invalid_inputs():
   )
   assert len(valid) == 1
   assert len(quarantine) == 2
+  assert quarantine[0]["layer"] == "silver"
   assert quarantine[0]["raw_record"]["engagement"] == "invalid-float"
+  assert quarantine[1]["layer"] == "silver"
   assert quarantine[1]["raw_record"] == "non-dict-item"
 
   with pytest.raises(ValueError, match="Unknown endpoint 'unknown_ep'"):
@@ -57,7 +59,7 @@ def test_process_and_quarantine_invalid_records_happy_and_sad_path(
     mock_upload_quarantine: MagicMock,
 ):
   mock_upload_quarantine.return_value = (
-      "s3://wistia-pipeline-project/quarantine/media_engagement/year=2026/month=11/day=06/9k4tbcdfg0.json"
+      "s3://wistia-pipeline-project/dev/quarantine/silver/media_engagement/year=2026/month=11/day=06/9k4tbcdfg0.json"
   )
 
   # Happy path: all valid, no quarantine upload triggered
@@ -73,7 +75,7 @@ def test_process_and_quarantine_invalid_records_happy_and_sad_path(
   assert clean_res["quarantine_s3_uri"] is None
   mock_upload_quarantine.assert_not_called()
 
-  # Sad path: invalid record triggers quarantine S3 upload
+  # Sad path: invalid record triggers quarantine S3 upload with stage="silver"
   dirty_res = process_and_quarantine_invalid_records(
       bucket_name="wistia-pipeline-project",
       region="us-east-1",
@@ -83,5 +85,7 @@ def test_process_and_quarantine_invalid_records_happy_and_sad_path(
   )
   assert len(dirty_res["valid_records"]) == 0
   assert len(dirty_res["quarantine_records"]) == 1
+  assert dirty_res["quarantine_records"][0]["layer"] == "silver"
   assert dirty_res["quarantine_s3_uri"] is not None
   mock_upload_quarantine.assert_called_once()
+  assert mock_upload_quarantine.call_args.kwargs["stage"] == "silver"

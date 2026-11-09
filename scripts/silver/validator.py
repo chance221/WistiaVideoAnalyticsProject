@@ -43,6 +43,7 @@ def validate_bronze_records(
   for record in records:
     if not isinstance(record, dict):
       quarantine_records.append({
+          "layer": "silver",
           "endpoint": endpoint_name,
           "raw_record": record,
           "errors": [{"msg": f"Expected object/dict record, got {type(record).__name__}"}],
@@ -57,6 +58,7 @@ def validate_bronze_records(
       valid_records.append(serialized)
     except ValidationError as exc:
       quarantine_records.append({
+          "layer": "silver",
           "endpoint": endpoint_name,
           "raw_record": record,
           "errors": exc.errors(include_url=False),
@@ -72,10 +74,11 @@ def process_and_quarantine_invalid_records(
     endpoint_name: str,
     media_id: str,
     raw_payload: dict[str, Any] | list[Any],
+    env: str = "dev",
     validated_at: datetime | None = None,
 ) -> dict[str, Any]:
   """Validates Bronze records for an endpoint and uploads any invalid records
-  to the S3 Quarantine layer (`s3://<bucket>/quarantine/<endpoint>/...`)."""
+  to the S3 Quarantine layer (`s3://<bucket>/<env>/quarantine/silver/<endpoint>/...`)."""
   if validated_at is None:
     validated_at = datetime.now(timezone.utc)
 
@@ -93,6 +96,8 @@ def process_and_quarantine_invalid_records(
         endpoint_name=endpoint_name,
         media_id=media_id,
         quarantine_records=quarantine_records,
+        env=env,
+        stage="silver",
         quarantined_at=validated_at,
     )
 

@@ -34,6 +34,8 @@ class AwsConfig(BaseModel):
   bucket_name: str
   region: str
   api_secret: str
+  sns_topic_arn: Optional[str] = None
+  alert_email: Optional[str] = None
 
 
 class EnvironmentConfig(BaseModel):
@@ -70,6 +72,7 @@ class MediaViews(BaseModel):
 
 class MediaEngagement(BaseModel):
   model_config = ConfigDict(frozen=True)
+  media_id: Optional[str] = None
   engagement: float
   engagement_data: List[int]
   rewatch_data: Optional[List[int]] = None
