@@ -93,3 +93,5 @@ jobs:
           WHEEL_BASENAME=$(basename "$WHEEL_FILE")
           aws s3 cp "$WHEEL_FILE" "s3://${{ env.S3_BUCKET }}/${{ env.S3_GLUE_PREFIX }}/${WHEEL_BASENAME}"
           aws s3 cp scripts/aws/glue_spark.py "s3://${{ env.S3_BUCKET }}/${{ env.S3_GLUE_PREFIX }}/glue_spark.py"
+          aws s3 cp "$WHEEL_FILE" "s3://${{ env.S3_BUCKET }}/artifacts/glue/latest/${WHEEL_BASENAME}"
+          aws s3 cp scripts/aws/glue_spark.py "s3://${{ env.S3_BUCKET }}/artifacts/glue/latest/glue_spark.py"
