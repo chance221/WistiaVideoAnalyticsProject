@@ -223,4 +223,6 @@ images/pipeline_method_flowchart.*
 .streamlit/secrets.toml
 
 AGENTS.md
+NotesAndBrainDump.ipynb
+play.py
 
