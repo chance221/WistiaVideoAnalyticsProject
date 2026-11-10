@@ -9,6 +9,30 @@ GOLD_PRIMARY_KEYS: dict[str, str] = {
     "fact_media_engagement": "engagement_key",
 }
 
+GOLD_SPARK_SCHEMAS: dict[str, str] = {
+    "dim_media": (
+        "media_id STRING, numeric_id BIGINT, title STRING, url STRING, "
+        "channel STRING, duration DOUBLE, type STRING, status STRING, "
+        "archived BOOLEAN, thumbnail_url STRING, created_at STRING, "
+        "updated_at STRING, ingested_at STRING"
+    ),
+    "dim_visitor": (
+        "visitor_id STRING, ip_address STRING, country STRING, region STRING, "
+        "city STRING, org STRING, email STRING, browser STRING, "
+        "platform STRING, mobile BOOLEAN, last_seen_at STRING, ingested_at STRING"
+    ),
+    "fact_media_engagement": (
+        "engagement_key STRING, media_id STRING, date STRING, "
+        "daily_event_count BIGINT, daily_play_count BIGINT, "
+        "daily_unique_visitors BIGINT, daily_watched_percent DOUBLE, "
+        "daily_total_watch_time_seconds DOUBLE, daily_avg_watch_time_seconds DOUBLE, "
+        "cumulative_page_loads BIGINT, cumulative_visitors BIGINT, "
+        "cumulative_play_count BIGINT, cumulative_play_rate BIGINT, "
+        "cumulative_watched_percent BIGINT, overall_engagement_score DOUBLE, "
+        "peak_concurrent_viewers BIGINT, ingested_at STRING"
+    ),
+}
+
 
 def _record_gold_quarantine(
     quarantine_records: list[dict[str, Any]] | None,
@@ -321,17 +345,23 @@ def build_fact_media_engagement(
 
     if play_events:
       avg_fraction_watched = sum(
-          float(e.get("percent_viewed") or 0.0) for e in play_events
+          (float(e.get("percent_viewed") or 0.0) for e in play_events),
+          0.0,
       ) / daily_play_count
     else:
       avg_fraction_watched = 0.0
 
-    daily_watched_percent = round(avg_fraction_watched * 100.0, 2)
-    daily_total_watch_time = round(
-        sum(float(e.get("percent_viewed") or 0.0) * duration for e in play_events),
-        2,
+    daily_watched_percent = float(round(avg_fraction_watched * 100.0, 2))
+    daily_total_watch_time = float(
+        round(
+            sum(
+                (float(e.get("percent_viewed") or 0.0) * duration for e in play_events),
+                0.0,
+            ),
+            2,
+        )
     )
-    daily_avg_watch_time = (
+    daily_avg_watch_time = float(
         round(daily_total_watch_time / daily_play_count, 2)
         if daily_play_count > 0
         else 0.0
@@ -348,12 +378,12 @@ def build_fact_media_engagement(
         "engagement_key": f"{media_id}_{event_date}",
         "media_id": media_id,
         "date": event_date,
-        "daily_event_count": total_events,
-        "daily_play_count": daily_play_count,
-        "daily_unique_visitors": unique_visitors,
-        "daily_watched_percent": daily_watched_percent,
-        "daily_total_watch_time_seconds": daily_total_watch_time,
-        "daily_avg_watch_time_seconds": daily_avg_watch_time,
+        "daily_event_count": int(total_events),
+        "daily_play_count": int(daily_play_count),
+        "daily_unique_visitors": int(unique_visitors),
+        "daily_watched_percent": float(daily_watched_percent),
+        "daily_total_watch_time_seconds": float(daily_total_watch_time),
+        "daily_avg_watch_time_seconds": float(daily_avg_watch_time),
         "cumulative_page_loads": int(views.get("page_loads") or 0),
         "cumulative_visitors": int(views.get("visitors") or 0),
         "cumulative_play_count": int(views.get("plays") or 0),

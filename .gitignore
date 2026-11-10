@@ -216,7 +216,11 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+
+images/pipeline_method_flowchart.*
+
 # Streamlit
 .streamlit/secrets.toml
 
 AGENTS.md
+

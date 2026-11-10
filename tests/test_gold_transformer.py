@@ -151,6 +151,14 @@ def test_build_fact_media_engagement_happy_and_sad_path():
           "percent_viewed": 0.0,
           "ingested_at": "2026-11-06T17:00:00Z",
       },
+      {
+          "event_key": "e4_zero_plays_day",
+          "media_id": "9k4tbcdfg0",
+          "event_date": "2026-11-06",
+          "visitor_key": "v3",
+          "percent_viewed": 0.0,
+          "ingested_at": "2026-11-06T17:00:00Z",
+      },
       {"event_key": "bad_missing_media_id"},
       {
           "event_key": "bad_percent",
@@ -164,7 +172,7 @@ def test_build_fact_media_engagement_happy_and_sad_path():
   facts = build_fact_media_engagement(
       views, engagement, metadata, events, quarantine_records=quarantine
   )
-  assert len(facts) == 1
+  assert len(facts) == 2
   row = facts[0]
   assert row["engagement_key"] == "9k4tbcdfg0_2026-11-05"
   assert row["daily_event_count"] == 3
@@ -174,6 +182,14 @@ def test_build_fact_media_engagement_happy_and_sad_path():
   assert row["daily_total_watch_time_seconds"] == 150.0
   assert row["daily_avg_watch_time_seconds"] == 75.0
   assert row["peak_concurrent_viewers"] == 297
+
+  # Verify zero-plays day produces strict Python floats (0.0, not int 0) for Spark DoubleType()
+  zero_play_row = facts[1]
+  assert zero_play_row["engagement_key"] == "9k4tbcdfg0_2026-11-06"
+  assert isinstance(zero_play_row["daily_watched_percent"], float)
+  assert isinstance(zero_play_row["daily_total_watch_time_seconds"], float)
+  assert isinstance(zero_play_row["daily_avg_watch_time_seconds"], float)
+  assert isinstance(zero_play_row["overall_engagement_score"], float)
   assert len(quarantine) == 4
   assert all(
       q["layer"] == "gold" and q["table"] == "fact_media_engagement"

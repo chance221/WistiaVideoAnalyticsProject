@@ -4,8 +4,29 @@ from scripts.silver.bronze_to_silver import (
     build_iceberg_scd1_merge_sql,
     process_bronze_endpoint_to_silver,
     run_silver_pipeline,
+    select_latest_s3_keys_per_media,
     upsert_silver_iceberg_table,
 )
+
+
+def test_select_latest_s3_keys_per_media_happy_and_sad_path():
+  keys = [
+      "dev/bronze/media_views/year=2026/month=11/day=05/9k4tbcdfg0_20261105T100000Z.json",
+      "dev/bronze/media_views/year=2026/month=11/day=06/9k4tbcdfg0_20261106T170125Z.json",
+      "dev/bronze/media_views/year=2026/month=11/day=05/8hunphufxp_20261105T100000Z.json",
+      "dev/bronze/media_views/year=2026/month=11/day=06/8hunphufxp_20261106T170125Z.json",
+  ]
+  selected = select_latest_s3_keys_per_media(keys)
+  assert selected == [
+      "dev/bronze/media_views/year=2026/month=11/day=06/8hunphufxp_20261106T170125Z.json",
+      "dev/bronze/media_views/year=2026/month=11/day=06/9k4tbcdfg0_20261106T170125Z.json",
+  ]
+
+  with pytest.raises(TypeError, match="s3_keys must be a list"):
+    select_latest_s3_keys_per_media("not-a-list")  # type: ignore[arg-type]
+
+  with pytest.raises(ValueError, match="Invalid Bronze S3 key filename format"):
+    select_latest_s3_keys_per_media(["dev/bronze/media_views/bad_file.txt"])
 
 
 def test_build_iceberg_scd1_merge_sql_happy_and_sad_path():

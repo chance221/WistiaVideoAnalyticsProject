@@ -1,10 +1,28 @@
 from pathlib import Path
+import zipfile
 import pytest
 from scripts.models.config_loader import (
     get_config,
     load_environment_config,
     load_media_config,
 )
+
+
+def test_load_config_from_wheel_archive_happy_and_sad_path(tmp_path: Path):
+  fake_wheel = tmp_path / "wistia_video_analytics-0.1.0-py3-none-any.whl"
+  with zipfile.ZipFile(fake_wheel, "w") as zf:
+    zf.writestr(
+        "config/dev.yaml",
+        "env: dev\naws:\n  bucket_name: wistia-pipeline-project\n  region: us-east-1\n  api_secret: westia_api_key\n",
+    )
+
+  wheel_config_dir = fake_wheel / "config"
+  cfg = load_environment_config("dev", config_dir=wheel_config_dir)
+  assert cfg.env == "dev"
+  assert cfg.aws.bucket_name == "wistia-pipeline-project"
+
+  with pytest.raises(FileNotFoundError, match="available: \\['dev'\\]"):
+    get_config("prod", config_dir=wheel_config_dir)
 
 
 def test_load_actual_repo_configs():

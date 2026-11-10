@@ -9,6 +9,7 @@ results_per_page: 50
 
 endpoints:
   #gets the viewer count. Shape is in media_views_url.json
+  #date doesn't matter
   media_views:
     description: "Get requst to the stats listed in exepected_response_columns"
     url_pattern: "{api_base}/modern/medias/{mediaHashedId}/stats"
@@ -23,7 +24,7 @@ endpoints:
         percentOfVisitorsClickingPlay: int
         plays: int
         averagePercentWatched: int
-  
+  #date doesn't matter
   media_engagement:
     description: "Gets heat map of video engagement for every second video is viewed"
     url_pattern: "{api_base}/modern/stats/medias/{mediaHashedId}/engagement"
@@ -69,7 +70,7 @@ endpoints:
         fileSize: "int"
         contentType: "str"
         type: "str"
-
+# date doesnt matter
   media_metadata:
     description: "Metadata tied to each video"
     url_pattern: "{api_base}/modern/medias/{mediaHashedId}"

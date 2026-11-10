@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Amazon EventBridge schedules for the Wistia Video Analytics Medallion Pipeline:
+  1. WistiaBronzeDailyIngestRule (Daily at 06:00 UTC -> AWS Lambda WistiaRawIngest)
+  2. WistiaMedallionWeeklyGlueSchedule (Weekly on Sundays at 07:00 UTC -> AWS Glue WistiaMedallionGlueJob)
+
+Resources:
+  WistiaBronzeDailyIngestRule:
+    Type: AWS::Events::Rule
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Triggers WistiaRawIngest Lambda daily at 06:00 UTC to ingest the previous UTC day's Wistia data into S3 Bronze.
+    Properties:
+      Name: WistiaBronzeDailyIngestRule
+      Description: Daily 06:00 UTC schedule to trigger WistiaRawIngest Lambda for previous day Bronze S3 ingestion.
+      ScheduleExpression: cron(0 6 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: WistiaRawIngestTarget
+          Arn: arn:aws:lambda:us-east-1:440107864885:function:WistiaRawIngest
+
+  AllowEventBridgeDailyBronzeInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: WistiaRawIngest
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WistiaBronzeDailyIngestRule.Arn
+
+  WistiaEventBridgeSchedulerRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Least-privilege IAM role allowing EventBridge Scheduler to start WistiaMedallionGlueJob weekly.
+    Properties:
+      RoleName: WistiaEventBridgeSchedulerRole
+      Description: Allows Amazon EventBridge Scheduler to start WistiaMedallionGlueJob weekly.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: WistiaStartGlueJobPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowStartWistiaGlueJob
+                Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                Resource: arn:aws:glue:us-east-1:440107864885:job/WistiaMedallionGlueJob
+
+  WistiaMedallionWeeklyGlueSchedule:
+    Type: AWS::Scheduler::Schedule
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Triggers WistiaMedallionGlueJob once every 7 days (Sunday 07:00 UTC) to batch-validate daily Bronze partitions and merge into Silver and Gold Iceberg tables.
+    Properties:
+      Name: WistiaMedallionWeeklyGlueSchedule
+      Description: Weekly Sunday 07:00 UTC schedule to run WistiaMedallionGlueJob (Bronze -> Silver -> Gold Iceberg SCD1).
+      ScheduleExpression: cron(0 7 ? * SUN *)
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      State: ENABLED
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:glue:startJobRun
+        RoleArn: !GetAtt WistiaEventBridgeSchedulerRole.Arn
+        Input: '{"JobName": "WistiaMedallionGlueJob", "Arguments": {"--ENV": "prod", "--STAGE": "all"}}'

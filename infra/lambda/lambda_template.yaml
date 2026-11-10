@@ -35,3 +35,11 @@ Resources:
       Tracing: PassThrough
       Role: >-
         arn:aws:iam::440107864885:role/WistiaLambdaExecutionole
+      Events:
+        WistiaBronzeDailyIngestRule:
+          Type: Schedule
+          Properties:
+            Name: WistiaBronzeDailyIngestRule
+            Description: Daily 06:00 UTC schedule to trigger WistiaRawIngest Lambda for previous day Bronze S3 ingestion.
+            Schedule: cron(0 6 * * ? *)
+            Enabled: true

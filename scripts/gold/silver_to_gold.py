@@ -3,6 +3,7 @@ from typing import Any
 from scripts.aws.s3_client import upload_quarantine_json_to_s3
 from scripts.gold.transformer import (
     GOLD_PRIMARY_KEYS,
+    GOLD_SPARK_SCHEMAS,
     validate_and_build_gold_tables,
 )
 from scripts.models.config_loader import load_environment_config
@@ -38,7 +39,7 @@ def upsert_gold_iceberg_table(
 
   spark.sql(f"CREATE DATABASE IF NOT EXISTS {full_db_name}")
 
-  df = spark.createDataFrame(records)
+  df = spark.createDataFrame(records, schema=GOLD_SPARK_SCHEMAS[table_name])
   df.createOrReplaceTempView(source_view_name)
 
   if not spark.catalog.tableExists(full_table_name):

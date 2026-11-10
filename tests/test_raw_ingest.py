@@ -82,6 +82,16 @@ def test_run_raw_ingestion_and_lambda_handler_happy_path(
   assert mock_fetch.call_count == 8
   assert mock_upload.call_count == 8
 
+  # Verify empty list response (0 events for the day) skips uploading empty [] file to S3
+  mock_fetch.reset_mock()
+  mock_upload.reset_mock()
+  mock_fetch.side_effect = lambda url, **kwargs: [] if "events" in url else {"id": 123}
+  no_events_resp = lambda_handler(
+      {"env": "dev", "time": "2026-11-06T06:00:00Z"}, None
+  )
+  assert no_events_resp["files_uploaded"] == 6
+  assert mock_upload.call_count == 6
+
 
 @patch("scripts.raw.raw_ingest.fetch_paginated_data")
 @patch("scripts.raw.raw_ingest.get_secret")

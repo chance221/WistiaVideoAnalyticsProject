@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from scripts.aws.s3_client import (
@@ -9,10 +10,36 @@ from scripts.aws.s3_client import (
 from scripts.models.config_loader import load_environment_config, load_media_config
 from scripts.silver.transformer import (
     SILVER_PRIMARY_KEYS,
+    SILVER_SPARK_SCHEMAS,
     deduplicate_by_primary_key,
     transform_validated_records_for_silver,
 )
 from scripts.silver.validator import process_and_quarantine_invalid_records
+
+CUMULATIVE_MEDIA_ENDPOINTS = frozenset({
+    "media_views",
+    "media_engagement",
+    "media_metadata",
+})
+
+
+def select_latest_s3_keys_per_media(s3_keys: list[str]) -> list[str]:
+  """For cumulative video-level endpoints (`media_views`, `media_engagement`,
+  `media_metadata`), selects only the single newest S3 key per `media_id`
+  based on the `<media_id>_<YYYYMMDDTHHMMSSZ>.json` filename timestamp."""
+  if not isinstance(s3_keys, list):
+    raise TypeError("s3_keys must be a list of S3 key strings")
+
+  latest_by_media: dict[str, tuple[str, str]] = {}
+  for s3_key in s3_keys:
+    media_id = parse_media_id_from_s3_key(s3_key)
+    filename = PurePosixPath(s3_key).stem
+    timestamp_part = filename.rsplit("_", 1)[1]
+    existing = latest_by_media.get(media_id)
+    if existing is None or (timestamp_part, s3_key) >= (existing[0], existing[1]):
+      latest_by_media[media_id] = (timestamp_part, s3_key)
+
+  return sorted(item[1] for item in latest_by_media.values())
 
 
 def build_iceberg_scd1_merge_sql(
@@ -63,7 +90,7 @@ def upsert_silver_iceberg_table(
 
   spark.sql(f"CREATE DATABASE IF NOT EXISTS {full_db_name}")
 
-  df = spark.createDataFrame(records)
+  df = spark.createDataFrame(records, schema=SILVER_SPARK_SCHEMAS[endpoint_name])
   df.createOrReplaceTempView(source_view_name)
 
   if not spark.catalog.tableExists(full_table_name):
@@ -110,6 +137,9 @@ def process_bronze_endpoint_to_silver(
       env=env,
       partition_date=partition_date,
   )
+
+  if endpoint_name in CUMULATIVE_MEDIA_ENDPOINTS and partition_date is None:
+    s3_keys = select_latest_s3_keys_per_media(s3_keys)
 
   all_silver_rows: list[dict[str, Any]] = []
   total_quarantined = 0

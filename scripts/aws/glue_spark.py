@@ -68,13 +68,19 @@ def run_glue_medallion_job(
     partition_date_str: str | None = None,
     spark: Any | None = None,
     catalog_name: str = "glue_catalog",
+    stage: str = "all",
 ) -> dict[str, Any]:
-  """End-to-end AWS Glue job orchestrator:
-  1. Reads S3 Bronze JSON -> validates with Pydantic -> routes invalid rows to S3 Quarantine
-     -> SCD1 upserts valid rows into Silver Apache Iceberg tables.
-  2. Transforms Silver records into Gold dimensional & fact tables (`dim_media`,
-     `dim_visitor`, `fact_media_engagement`) -> SCD1 upserts into Gold Apache Iceberg tables.
+  """End-to-end AWS Glue job orchestrator supporting `--STAGE` ('all', 'silver', 'gold'):
+  - 'all' (default): Runs Bronze -> Silver -> Gold in a single warm Spark session.
+  - 'silver': Runs only Bronze -> Silver (+ Silver Quarantine).
+  - 'gold': Runs only Silver -> Gold (+ Gold Quarantine) reading directly from Silver Iceberg tables.
   """
+  clean_stage = stage.strip().lower()
+  if clean_stage not in ("all", "silver", "gold"):
+    raise ValueError(
+        f"Invalid stage {stage!r}. Expected 'all', 'silver', or 'gold'."
+    )
+
   env_config = load_environment_config(env)
   partition_date = parse_partition_date_arg(partition_date_str)
 
@@ -84,26 +90,39 @@ def run_glue_medallion_job(
         catalog_name=catalog_name,
     )
 
-  silver_summaries = run_silver_pipeline(
-      env=env,
-      partition_date=partition_date,
-      spark=spark,
-      catalog_name=catalog_name,
-  )
+  silver_summaries: list[dict[str, Any]] | None = None
+  gold_summary: dict[str, Any] | None = None
 
-  silver_data_by_endpoint = {
-      item["endpoint"]: item["silver_records"] for item in silver_summaries
-  }
+  if clean_stage in ("all", "silver"):
+    silver_summaries = run_silver_pipeline(
+        env=env,
+        partition_date=partition_date,
+        spark=spark,
+        catalog_name=catalog_name,
+    )
 
-  gold_summary = run_gold_pipeline(
-      env=env,
-      spark=spark,
-      silver_data_by_endpoint=silver_data_by_endpoint,
-      catalog_name=catalog_name,
-  )
+  if clean_stage == "all":
+    assert silver_summaries is not None
+    silver_data_by_endpoint = {
+        item["endpoint"]: item["silver_records"] for item in silver_summaries
+    }
+    gold_summary = run_gold_pipeline(
+        env=env,
+        spark=spark,
+        silver_data_by_endpoint=silver_data_by_endpoint,
+        catalog_name=catalog_name,
+    )
+  elif clean_stage == "gold":
+    gold_summary = run_gold_pipeline(
+        env=env,
+        spark=spark,
+        silver_data_by_endpoint=None,
+        catalog_name=catalog_name,
+    )
 
   return {
       "env": env,
+      "stage": clean_stage,
       "silver": silver_summaries,
       "gold": gold_summary,
   }
@@ -112,10 +131,17 @@ def run_glue_medallion_job(
 if __name__ == "__main__":
   env_arg = "prod"
   date_arg = None
+  stage_arg = "all"
   for i, arg in enumerate(sys.argv):
     if arg == "--ENV" and i + 1 < len(sys.argv):
       env_arg = sys.argv[i + 1]
     elif arg == "--PARTITION_DATE" and i + 1 < len(sys.argv):
       date_arg = sys.argv[i + 1]
+    elif arg == "--STAGE" and i + 1 < len(sys.argv):
+      stage_arg = sys.argv[i + 1]
 
-  run_glue_medallion_job(env=env_arg, partition_date_str=date_arg)
+  run_glue_medallion_job(
+      env=env_arg,
+      partition_date_str=date_arg,
+      stage=stage_arg,
+  )

@@ -1,5 +1,6 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+import zipfile
 from scripts.models.config_models import (
   MediaConfig,
   Endpoints,
@@ -15,18 +16,51 @@ REQUIRED_MEDIA_SECTIONS = ("api_base", "media_ids", "endpoints", "results_per_pa
 REQUIRED_ENV_SECTIONS = ("env", "aws")
 
 
+def _read_yaml_from_wheel_or_zip(
+    directory: Path,
+    config_name: str,
+) -> str | None:
+  """If `directory` is inside a `.whl` or `.zip` archive (e.g. AWS Glue `--extra-py-files`
+  where `directory` is `/tmp/.../pkg.whl/config`), reads `<directory.name>/<config_name>.yaml`
+  directly from the zip archive."""
+  archive_path = directory.parent
+  if not archive_path.is_file() or not zipfile.is_zipfile(archive_path):
+    return None
+
+  prefix = f"{directory.name}/"
+  target_entry = f"{prefix}{config_name}.yaml"
+  with zipfile.ZipFile(archive_path, "r") as zf:
+    names = zf.namelist()
+    if target_entry in names:
+      return zf.read(target_entry).decode("utf-8")
+
+    available = sorted(
+        PurePosixPath(n).stem
+        for n in names
+        if n.startswith(prefix) and n.endswith(".yaml")
+    )
+    raise FileNotFoundError(
+        f"no config for config {config_name!r} at {directory / f'{config_name}.yaml'}; available: {available}"
+    )
+
+
 def get_config(config_name: str, config_dir: Path | str | None = None):
   directory = Path(config_dir) if config_dir else DEFAULT_CONFIG_DIR
   config_path = directory / f"{config_name}.yaml"
-  
-  if not config_path.is_file():
-    available = sorted(p.stem for p in directory.glob("*.yaml"))
-    raise FileNotFoundError(
-        f"no config for config {config_name!r} at {config_path}; available: {available}"
-    )
 
-  with config_path.open(encoding="utf-8") as handle:
-      yaml_config: Any = yaml.safe_load(handle)
+  if config_path.is_file():
+    raw_yaml_text = config_path.read_text(encoding="utf-8")
+  else:
+    zip_yaml_text = _read_yaml_from_wheel_or_zip(directory, config_name)
+    if zip_yaml_text is not None:
+      raw_yaml_text = zip_yaml_text
+    else:
+      available = sorted(p.stem for p in directory.glob("*.yaml"))
+      raise FileNotFoundError(
+          f"no config for config {config_name!r} at {config_path}; available: {available}"
+      )
+
+  yaml_config: Any = yaml.safe_load(raw_yaml_text)
 
   if not isinstance(yaml_config, dict):
     raise ValueError(f"{config_path}: expected a YAML mapping")

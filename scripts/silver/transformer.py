@@ -7,6 +7,34 @@ SILVER_PRIMARY_KEYS: dict[str, str] = {
     "media_events": "event_key",
 }
 
+SILVER_SPARK_SCHEMAS: dict[str, str] = {
+    "media_views": (
+        "id BIGINT, hashed_id STRING, name STRING, page_loads BIGINT, "
+        "visitors BIGINT, percent_of_visitors_clicking_play BIGINT, "
+        "plays BIGINT, average_percent_watched BIGINT, ingested_at STRING"
+    ),
+    "media_engagement": (
+        "media_id STRING, engagement DOUBLE, engagement_data ARRAY<BIGINT>, "
+        "rewatch_data ARRAY<BIGINT>, ingested_at STRING"
+    ),
+    "media_metadata": (
+        "id BIGINT, hashed_id STRING, name STRING, type STRING, "
+        "archived BOOLEAN, duration DOUBLE, created STRING, updated STRING, "
+        "description STRING, protected STRING, status STRING, "
+        "thumbnail_url STRING, thumbnail_width BIGINT, thumbnail_height BIGINT, "
+        "folder_id BIGINT, folder_name STRING, ingested_at STRING"
+    ),
+    "media_events": (
+        "event_key STRING, received_at STRING, event_date STRING, "
+        "media_id STRING, media_name STRING, media_url STRING, "
+        "visitor_key STRING, ip STRING, country STRING, region STRING, "
+        "city STRING, lat DOUBLE, lon DOUBLE, org STRING, email STRING, "
+        "percent_viewed DOUBLE, embed_url STRING, conversion_type STRING, "
+        "iframe_heatmap_url STRING, browser STRING, browser_version STRING, "
+        "platform STRING, mobile BOOLEAN, thumbnail_url STRING, ingested_at STRING"
+    ),
+}
+
 
 def transform_validated_records_for_silver(
     endpoint_name: str,
@@ -45,9 +73,9 @@ def transform_validated_records_for_silver(
         )
       transformed.append({
           "media_id": resolved_media_id,
-          "engagement": r["engagement"],
-          "engagement_data": r["engagement_data"],
-          "rewatch_data": r.get("rewatch_data") or [],
+          "engagement": float(r["engagement"]),
+          "engagement_data": [int(x) for x in (r["engagement_data"] or [])],
+          "rewatch_data": [int(x) for x in (r.get("rewatch_data") or [])],
           "ingested_at": r["ingested_at"],
       })
 
@@ -55,21 +83,21 @@ def transform_validated_records_for_silver(
       thumb = r.get("thumbnail") or {}
       folder = r.get("folder") if isinstance(r.get("folder"), dict) else {}
       transformed.append({
-          "id": r["id"],
+          "id": int(r["id"]),
           "hashed_id": r["hashed_id"],
           "name": r["name"],
           "type": r["type"],
-          "archived": r["archived"],
-          "duration": r["duration"],
+          "archived": bool(r["archived"]),
+          "duration": float(r["duration"]),
           "created": r["created"],
           "updated": r["updated"],
           "description": r.get("description") or "",
           "protected": str(r["protected"]) if r.get("protected") is not None else None,
           "status": str(r["status"]) if r.get("status") is not None else None,
           "thumbnail_url": str(thumb["url"]) if thumb.get("url") else None,
-          "thumbnail_width": thumb.get("width"),
-          "thumbnail_height": thumb.get("height"),
-          "folder_id": folder.get("id"),
+          "thumbnail_width": int(thumb["width"]) if thumb.get("width") is not None else None,
+          "thumbnail_height": int(thumb["height"]) if thumb.get("height") is not None else None,
+          "folder_id": int(folder["id"]) if folder.get("id") is not None else None,
           "folder_name": folder.get("name"),
           "ingested_at": r["ingested_at"],
       })
@@ -90,18 +118,18 @@ def transform_validated_records_for_silver(
           "country": r.get("country"),
           "region": r.get("region"),
           "city": r.get("city"),
-          "lat": r.get("lat"),
-          "lon": r.get("lon"),
+          "lat": float(r["lat"]) if r.get("lat") is not None else None,
+          "lon": float(r["lon"]) if r.get("lon") is not None else None,
           "org": r.get("org"),
           "email": r.get("email"),
-          "percent_viewed": r["percent_viewed"],
+          "percent_viewed": float(r["percent_viewed"]),
           "embed_url": r.get("embed_url"),
           "conversion_type": r.get("conversion_type"),
           "iframe_heatmap_url": str(r["iframe_heatmap_url"]),
           "browser": ua.get("browser"),
           "browser_version": ua.get("browser_version"),
           "platform": ua.get("platform"),
-          "mobile": ua.get("mobile"),
+          "mobile": bool(ua["mobile"]) if ua.get("mobile") is not None else None,
           "thumbnail_url": str(thumb["url"]) if thumb.get("url") else None,
           "ingested_at": r["ingested_at"],
       })

@@ -72,26 +72,26 @@ media_url = "https://api.wistia.com/modern/stats/medias/9k4tbcdfg0"
 show_media_api = "https://api.wistia.com/modern/medias/9k4tbcdfg0"
 #
 
-show_media_analytics_url = f"https://api.wistia.com/modern/analytics/medias/{mediaHashedId}?start_date=2026-10-03&end_date=2026-11-04"
+show_media_analytics_url = f"https://api.wistia.com/modern/analytics/medias/{mediaHashedId}?start_date=2025-10-01&end_date=2026-10-30"
 
-event_data_url = f"https://api.wistia.com/modern/stats/events/{EVENT_KEY}"
+event_data_url = f"https://api.wistia.com/modern/stats/events/{EVENT_KEY}?start_date=2025-10-01&end_date=2026-10-30"
 
 media_engagement_url = f"https://api.wistia.com/modern/stats/medias/{mediaHashedId}/engagement"
 # This provides an engagement matrix each second of the video
 # egagement score is the percentage of how much the video was watched. Don't care about the engagement data. See if this can come from somewhere else
 
-media_views_url = f"https://api.wistia.com/modern/medias/{mediaHashedId}/stats"
+media_views_url = f"https://api.wistia.com/modern/medias/{mediaHashedId}/stats?start_date=2025-10-01&end_date=2026-10-01"
 #gets
 
 
-media_embed_locations = "https://api.wistia.com/modern/analytics/medias/9k4tbcdfg0/embed_locations?start_date=2026-10-03&end_date=2026-11-04"
+media_embed_locations = "https://api.wistia.com/modern/analytics/medias/9k4tbcdfg0/embed_locations?start_date=2026-10-03&end_date=2026-10-03"
 #where the video is embeded and number of plays
 
 visitor_url = "https://api.wistia.com/modern/stats/visitors"
 headers = {
     "accept": "application/json",
     "X-Wistia-API-Version": "2026-09",
-    "authorization": "Bearer "
+    "authorization": f"Bearer 0323ade64e13f79821bdc0f2a9410d9ec3873aa9df01f8a4a54d4e0f3dd2e6b4"
 }
 
 

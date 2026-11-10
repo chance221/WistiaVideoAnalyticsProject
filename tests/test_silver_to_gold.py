@@ -202,5 +202,39 @@ def test_glue_spark_helpers_and_orchestrator_happy_and_sad_path():
         spark=mock_spark,
     )
     assert res["env"] == "prod"
+    assert res["stage"] == "all"
     mock_silver.assert_called_once()
     mock_gold.assert_called_once()
+
+    # Silver-only stage
+    mock_silver.reset_mock()
+    mock_gold.reset_mock()
+    res_silver = run_glue_medallion_job(
+        env="dev",
+        spark=mock_spark,
+        stage="silver",
+    )
+    assert res_silver["stage"] == "silver"
+    assert res_silver["silver"] is not None
+    assert res_silver["gold"] is None
+    mock_silver.assert_called_once()
+    mock_gold.assert_not_called()
+
+    # Gold-only stage (reads from Silver Iceberg tables directly)
+    mock_silver.reset_mock()
+    mock_gold.reset_mock()
+    res_gold = run_glue_medallion_job(
+        env="dev",
+        spark=mock_spark,
+        stage="gold",
+    )
+    assert res_gold["stage"] == "gold"
+    assert res_gold["silver"] is None
+    assert res_gold["gold"] is not None
+    mock_silver.assert_not_called()
+    mock_gold.assert_called_once()
+    assert mock_gold.call_args.kwargs["silver_data_by_endpoint"] is None
+
+    # Sad path: invalid stage
+    with pytest.raises(ValueError, match="Invalid stage"):
+      run_glue_medallion_job(env="dev", spark=mock_spark, stage="bronze")

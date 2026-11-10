@@ -41,3 +41,19 @@ A key architectural decision in this project balances **data freshness/auditabil
   * Unlike AWS Lambda, **AWS Glue PySpark jobs have no free tier** and bill per DPU-hour (minimum 2 `G.1X` workers) with cluster cold-start overhead on every run.
   * Because the daily Lambda job already lands each day's raw JSON cleanly into Hive-partitioned S3 folders (`year=YYYY/month=MM/day=DD`) and our data volume per day is modest, spinning up a distributed Spark cluster every single day would waste compute budget on cluster startup time.
   * By scheduling the **AWS Glue PySpark + Apache Iceberg SCD Type 1 job once every 7 days** (using Glue `FLEX` execution and combining Bronze→Silver and Silver→Gold into a single warm Spark session in [`scripts/aws/glue_spark.py`](scripts/aws/glue_spark.py)), a full week of daily Bronze partitions is validated, deduplicated, and merged into Silver and Gold Iceberg tables in a single ~90-second run—reducing AWS Glue DPU compute spend by **~85%** (to **<$0.10/month**) without losing any daily granularity.
+* **Latest-Snapshot S3 Filtering for Cumulative Endpoints (`select_latest_s3_keys_per_media`):**
+  * Three of the four Wistia endpoints (`media_views`, `media_engagement`, and `media_metadata`) return point-in-time lifetime cumulative totals per video (`hashed_id` / `media_id`), whereas `media_events` returns incremental daily viewer sessions (`event_key`).
+  * In the **Bronze Layer**, AWS Lambda still captures all 4 endpoints daily ($0.00 Lambda compute cost and <$0.0001/month in S3 storage for ~36 KB/day of JSON), preserving a daily raw audit trail in S3 if historical progression analysis is ever needed.
+  * In the **Silver Layer** ([`scripts/silver/bronze_to_silver.py`](scripts/silver/bronze_to_silver.py)), [`select_latest_s3_keys_per_media`](scripts/silver/bronze_to_silver.py) filters the S3 key list for `media_views`, `media_engagement`, and `media_metadata` before downloading so AWS Glue **only downloads and validates the single newest S3 file per `media_id`** (while still reading all daily partition files for `media_events`). This eliminates redundant S3 `GetObject` calls and Pydantic parsing over superseded snapshots, keeping Glue execution time and DPU cost minimal as the Bronze history grows over months and years.
+
+---
+
+## Single-Session vs. Decoupled Stage Execution (`--STAGE all | silver | gold`)
+
+In large enterprise environments, Bronze→Silver and Silver→Gold are often split into separate Glue jobs for failure isolation and independent backfills, at the cost of paying for **two** Spark cluster cold starts and requiring an external state-machine orchestrator (such as AWS Step Functions or Glue Workflows).
+
+To achieve **both cost efficiency and isolated stage replayability**, [`scripts/aws/glue_spark.py`](scripts/aws/glue_spark.py) supports a configurable `--STAGE` job parameter:
+
+* `--STAGE all` *(default for weekly scheduled runs)*: Executes **Bronze → Silver → Gold** inside a **single warm Spark session**, passing validated Silver records directly into Gold and cutting AWS Glue DPU startup costs in half.
+* `--STAGE silver`: Runs **only Bronze → Silver** (Pydantic validation, S3 Silver Quarantine routing, and Silver Iceberg SCD Type 1 upserts).
+* `--STAGE gold`: Runs **only Silver → Gold**, reading directly from the existing `wistia_silver_<env>` Iceberg tables via [`read_silver_table_records`](scripts/gold/silver_to_gold.py) and upserting `dim_media`, `dim_visitor`, and `fact_media_engagement` (+ Gold Quarantine routing) without re-scanning raw Bronze JSON files in S3.

@@ -95,8 +95,8 @@ def run_raw_ingestion(
 
       base_params = create_paged_params(
           media_id=None if is_path_scoped else media_id,
-          start_date=start_date,
-          end_date=end_date,
+          start_date=None if is_path_scoped else start_date,
+          end_date=None if is_path_scoped else end_date,
       )
 
       raw_data = fetch_paginated_data(
@@ -105,6 +105,12 @@ def run_raw_ingestion(
           per_page=media_config.results_per_page,
           base_params=base_params,
       )
+
+      if isinstance(raw_data, list) and len(raw_data) == 0:
+        print(
+            f"Skipped S3 upload for {endpoint_name} ({media_id}) [0 records returned for window {start_date}..{end_date}]"
+        )
+        continue
 
       s3_uri = upload_raw_json_to_s3(
           bucket_name=env_config.aws.bucket_name,
@@ -125,8 +131,8 @@ def run_raw_ingestion(
           "endpoint": endpoint_name,
           "media_id": media_id,
           "record_count": record_count,
-          "start_date": start_date,
-          "end_date": end_date,
+          "start_date": None if is_path_scoped else start_date,
+          "end_date": None if is_path_scoped else end_date,
           "s3_uri": s3_uri,
           "ingested_at": ingested_at.isoformat(),
       })
